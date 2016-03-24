@@ -27,52 +27,103 @@ import Backbone from 'backbone'
 function app() {
     // start app
     // new Router()
-    var GuestModel = Backbone.Model.extend({
+    var ItemModel = Backbone.Model.extend({
 
         defaults: {
-            partySize: 1
+            dueDate: "none",
+            done: false
         },
 
-        initialize: function(newName) {
-            this.set({name: newName})
+        initialize: function(taskName) {
+            this.set({task: taskName})
         }
     })
 
-    var GuestCollection = Backbone.Collection.extend({
-        model: GuestModel
+    var TodoCollection = Backbone.Collection.extend({
+        model: ItemModel
     })
 
-    var PartyView = React.createClass({
+    var TodoView = React.createClass({
 
-        _addGuest: function(name) {
-            this.state.guestColl.add(new GuestModel(name))
+        _addItem: function(task) {
+            this.state.all.add(new ItemModel(task))
+            this._update()
+        },
+
+        _update: function(){
             this.setState({
-                guestColl: this.state.guestColl
-            })
+                all: this.state.all,
+                done: this.state.all.where({done:true}),
+                undone: this.state.all.where({done:false}),
+                showing: location.hash.substr(1)
+            })            
         },
 
         getInitialState: function() {
             return {
-                guestColl: this.props.guestColl
+                all: this.props.todoColl,
+                done: this.props.todoColl.where({done:true}),
+                undone: this.props.todoColl.where({done:false}),
+                showing: this.props.showing
             }
         },
 
         render: function() {
+            var coll = this.state.all
+            if (this.state.showing === "done") coll = this.state.done
+            if (this.state.showing === "undone") coll = this.state.undone
+
             return (
-                <div className="partyView">
-                    <GuestAdder adderFunc={this._addGuest}/>
-                    <GuestList guestColl={this.state.guestColl}/>
+                <div className="todoView">
+                    <Tabs updater={this._update} showing={this.state.showing} />
+                    <ItemAdder adderFunc={this._addItem}/>
+                    <TodoList updater={this._update} todoColl={coll}/>
                 </div>  
                 )
         }
     })
 
-    var GuestAdder = React.createClass({
+    var Tabs = React.createClass({
+        _genTab: function(tabType,i) {
+            return <Tab updater={this.props.updater} key={i} type={tabType} showing={this.props.showing} />
+        },
+
+        render: function() {
+            return (
+                <div className="tabs">
+                    {["all","done","undone"].map(this._genTab)}
+                </div>
+                )
+        }
+    })
+
+    var Tab = React.createClass({
+        _changeRoute: function() {
+            location.hash = this.props.type
+            this.props.updater()
+        },
+
+        render: function() {
+            var styleObj = {}
+            if (this.props.type === this.props.showing){
+                styleObj.borderBottom = "#ddd"
+            }
+
+            return (
+                <div onClick={this._changeRoute} style={styleObj} className="tab">
+                    <p>{this.props.type}</p>
+                </div>
+                )
+        }
+    })
+
+    var ItemAdder = React.createClass({
 
         _handleKeyDown: function(keyEvent) {
             if (keyEvent.keyCode === 13) {
                 var guestName = keyEvent.target.value
                 this.props.adderFunc(guestName)
+                keyEvent.target.value = ''
             }
         },
 
@@ -81,34 +132,63 @@ function app() {
         }
     })
 
-    var GuestList = React.createClass({
+    var TodoList = React.createClass({
 
-        _makeGuest: function(model) {
-            return <Guest guestModel={model} />
+        _makeItem: function(model,i) {
+            console.log(model, i)
+            return <Item key={i} updater={this.props.updater} itemModel={model} />
         },
 
         render: function() {
             return (
-                <div className="guestList">
-                    {this.props.guestColl.map(this._makeGuest)}
+                <div className="todoList">
+                    {this.props.todoColl.map(this._makeItem)}
                 </div>
                 )
         }
     })
 
-    var Guest = React.createClass({
+    var Item = React.createClass({
+        _toggleDone: function() {
+            if (this.props.itemModel.get('done')) {
+                this.props.itemModel.set({done: false})
+            }
+            else {
+                this.props.itemModel.set({done: true})
+            }
+            this.props.updater()
+        },
+
         render: function() {
-            return <p>{this.props.guestModel.get('name')}</p>
+            var buttonFiller = this.props.itemModel.get('done') ? "\u2713" : ' '                 
+
+            return (
+                <div className="todoItem">
+                    <p>{this.props.itemModel.get('task')}</p>
+                    <button onClick={this._toggleDone}>{buttonFiller}</button>
+                </div>
+                )
         }
     })
 
-    var PartyRouter = Backbone.Router.extend({
+    var TodoRouter = Backbone.Router.extend({
         routes: {
+            "undone": "showUndone",
+            "done": "showDone",
             "*default": "home"
         },
 
+        showDone: function(){
+            console.log('showing done')
+            DOM.render(<TodoView showing="done" todoColl={new TodoCollection()}/>,document.querySelector('.container'))
+        },
+
         home: function() {
-            DOM.render(<PartyView guestColl={new GuestCollection()}/>,document.querySelector('.container'))
+            DOM.render(<TodoView showing="all" todoColl={new TodoCollection()}/>,document.querySelector('.container'))
+        },
+
+        showUndone: function() {
+            DOM.render(<TodoView showing="undone" todoColl={new TodoCollection()}/>,document.querySelector('.container'))            
         },
 
         initialize: function() {
@@ -116,7 +196,7 @@ function app() {
         }
     })
 
-    var pr = new PartyRouter()
+    var pr = new TodoRouter()
 
 }
 

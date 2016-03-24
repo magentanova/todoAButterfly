@@ -1,16 +1,11 @@
 @import "../bower_components/normalize-scss/_normalize.scss";
 @import "../bower_components/typeplate-starter-kit/scss/_typeplate.scss";
 
-p+p {
+p, p+p {
     text-indent: 0;
-    margin-top: 0;
+    margin: auto;
 }
 
-p {
-    max-width: 80ch;
-    margin-left: 0;
-    margin-right: auto;
-}
 
 ul, ol {
     max-width: 80ch;
@@ -127,3 +122,87 @@ body {
 /**
  * App code
  */
+
+$myCharcoal: #555;
+$myOffGray: #ddd;
+
+body {
+    background: cornflowerblue;
+}
+ .todoView {
+    max-width: 750px;
+    margin: auto;
+    margin-top: 12%;
+    text-align: center;
+    background: $myOffGray;
+    border: 5px solid $myCharcoal;
+    padding: 25px;
+    position:relative;
+
+    .tabs {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translate(-50%,-100%);
+        margin: auto;
+        display: flex;
+        justify-content: space-between;
+
+        .tab {
+            display: inline-block;
+            border: 5px solid #555;
+            flex: 1;
+            margin: 0 25px;
+            padding: 5px 10px;
+            text-align: center;
+            width: 100px;
+            background: $myOffGray;
+            cursor: pointer;
+        }
+    }
+
+    input {
+        border: 3px solid $myCharcoal;
+        margin: 10px;
+    }
+
+    input:focus {
+        outline: none;
+        border: 3px solid cornflowerblue;
+    }
+
+    .todoList {
+        text-align: left;
+
+        .todoItem {
+            background: $myCharcoal;
+            border-bottom: none;
+            padding: 2%;
+            margin: 20px;
+            display: flex;
+            justify-content: space-between;
+
+            p {
+                display: inline-block;
+                color: $myOffGray;
+                flex:1;
+            }
+
+            button {
+                background: $myOffGray;
+                border: 3px solid cornflowerblue;
+                padding: 0 3px;
+                margin: 10px;
+                color: cornflowerblue;
+                width: 30px;
+                height: 30px;
+                line-height: 24px;
+                font-size: 24px;
+            }
+
+            button:focus {
+                outline:none;
+            }
+        }
+    }
+ }
