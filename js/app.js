@@ -22,7 +22,7 @@ import fetch from "isomorphic-fetch"
 
 import DOM from 'react-dom'
 import React, {Component} from 'react'
-import Backbone from 'backbone'
+import Backbone from 'backbonefire'
 
 function app() {
     // start app
@@ -39,7 +39,7 @@ function app() {
         }
     })
 
-    var TodoCollection = Backbone.Collection.extend({
+    var TodoCollection = Backbone.Firebase.Collection.extend({
         model: ItemModel
     })
 

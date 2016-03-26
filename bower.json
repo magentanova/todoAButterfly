@@ -20,6 +20,7 @@
   "dependencies": {
     "normalize-scss": "~3.0.3",
     "PACE": "pace#~1.0.2",
-    "typeplate-starter-kit": "~2.1.0"
+    "typeplate-starter-kit": "~2.1.0",
+    "backbonefire": "~0.5.1"
   }
 }
