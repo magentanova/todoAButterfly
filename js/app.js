@@ -22,173 +22,231 @@ import fetch from "isomorphic-fetch"
 
 import DOM from 'react-dom'
 import React, {Component} from 'react'
-import Backbone from 'backbonefire'
+import Backbone from 'bbfire'
 
 function app() {
     // start app
     // new Router()
-    var ItemModel = Backbone.Model.extend({
 
+
+    // MODELS FOR USERS AND TODO ITEMS/COLLECTION
+
+    var UserModel = Backbone.Model.extend({
         defaults: {
-            dueDate: "none",
-            done: false
+            username: null
         },
 
-        initialize: function(taskName) {
-            this.set({task: taskName})
+        url: function() {
+            return `https://justindoesthings.firebaseio.com/users/${this.get('username')}.json`
+        }
+    })
+
+    var ItemModel = Backbone.Model.extend({
+        defaults: {
+            done: false
         }
     })
 
     var TodoCollection = Backbone.Firebase.Collection.extend({
-        model: ItemModel
+        model: ItemModel,
+        initialize: function(username) {
+            this.url = `https://justindoesthings.firebaseio.com/users/${username}/tasks`
+        }
     })
 
-    var TodoView = React.createClass({
+    // COMPONENTS FOR LOGIN VIEW
 
-        _addItem: function(task) {
-            this.state.all.add(new ItemModel(task))
-            this._update()
-        },
+    var LoginView = React.createClass ({
 
-        _update: function(){
-            this.setState({
-                all: this.state.all,
-                done: this.state.all.where({done:true}),
-                undone: this.state.all.where({done:false}),
-                showing: location.hash.substr(1)
-            })            
-        },
-
-        getInitialState: function() {
-            return {
-                all: this.props.todoColl,
-                done: this.props.todoColl.where({done:true}),
-                undone: this.props.todoColl.where({done:false}),
-                showing: this.props.showing
+        _submitUsername: function(e) {
+            if (e.keyCode === 13) {
+                var username = e.target.value
+                this.props.handleUserSubmit(username)
             }
         },
 
         render: function() {
-            var coll = this.state.all
-            if (this.state.showing === "done") coll = this.state.done
-            if (this.state.showing === "undone") coll = this.state.undone
-
             return (
-                <div className="todoView">
-                    <Tabs updater={this._update} showing={this.state.showing} />
-                    <ItemAdder adderFunc={this._addItem}/>
-                    <TodoList updater={this._update} todoColl={coll}/>
-                </div>  
+                <div className="loginContainer" >
+                    <input onKeyDown={this._submitUsername} name="username" />
+                </div>    
                 )
         }
     })
 
+    // COMPONENTS FOR TODO VIEW
+
+    var ToDoView = React.createClass ({
+
+        _addItem: function(taskName) {
+            var mod = new ItemModel({text:taskName})
+            this.state.todoColl.add(mod.attributes)
+            this._updater()
+        },
+
+        _clearFinished: function() {
+            var doneItems = this.state.todoColl.where({done:true})
+            console.log(doneItems)
+            doneItems.forEach(function(item) {
+                item.destroy()
+            }.bind(this))
+            this._updater()
+        },
+
+        _updater: function() {
+            this.setState({
+                todoColl: this.state.todoColl,
+                viewType: location.hash.substr(1)
+            })
+        },
+
+        componentWillMount: function() {
+            var self = this
+            this.props.todoColl.on('sync',function(){self.forceUpdate()})
+        },
+
+        getInitialState: function() {
+            return {
+                todoColl: this.props.todoColl,
+                viewType: location.hash.substr(1)
+            }
+        },
+
+        render: function(){
+            var viewedItems = this.state.todoColl
+            if (this.state.viewType === "done") viewedItems = this.state.todoColl.where({done:true})
+            if (this.state.viewType === "undone") viewedItems = this.state.todoColl.where({done:false})
+            console.log(viewedItems)
+            return(
+                <div className="todoView">
+                    <Tabs updater={this._updater} view={this.state.viewType}/>
+                    <ItemAdder adder={this._addItem} />
+                    <ToDoList updater={this._updater} clearer={this._clearFinished} todoColl={viewedItems} />
+                </div>
+            )
+        }
+    })
+
     var Tabs = React.createClass({
-        _genTab: function(tabType,i) {
-            return <Tab updater={this.props.updater} key={i} type={tabType} showing={this.props.showing} />
+
+        _makeTab: function(nameString,i) {
+            return <SingleTab updater={this.props.updater} key={i} tabName={nameString} view={this.props.view}/>
         },
 
         render: function() {
             return (
                 <div className="tabs">
-                    {["all","done","undone"].map(this._genTab)}
+                    {["all","done","undone"].map(this._makeTab)}
                 </div>
                 )
         }
     })
 
-    var Tab = React.createClass({
-        _changeRoute: function() {
-            location.hash = this.props.type
+    var SingleTab = React.createClass({
+
+        _updateView: function() {
             this.props.updater()
         },
 
         render: function() {
-            var styleObj = {}
-            if (this.props.type === this.props.showing){
-                styleObj.borderBottom = "#ddd"
+
+            var tabStyle = {}
+
+            if (this.props.view === this.props.tabName) {
+                tabStyle = {"borderBottom": "5px solid #ddd"}
             }
 
             return (
-                <div onClick={this._changeRoute} style={styleObj} className="tab">
-                    <p>{this.props.type}</p>
-                </div>
+                <div style={tabStyle} onClick={this._updateView} className="tab">
+                    <p>{this.props.tabName}</p>
+                </div>  
                 )
         }
     })
 
-    var ItemAdder = React.createClass({
+    var ItemAdder= React.createClass ({
 
-        _handleKeyDown: function(keyEvent) {
+        _handleKeydown: function(keyEvent) {
             if (keyEvent.keyCode === 13) {
-                var guestName = keyEvent.target.value
-                this.props.adderFunc(guestName)
+                var item = keyEvent.target.value
                 keyEvent.target.value = ''
+                this.props.adder(item)
             }
         },
-
-        render: function() {
-            return <input onKeyDown={this._handleKeyDown} />
+    
+        render:function(){
+            return(
+                <input onKeyDown={this._handleKeydown} />
+            )
         }
     })
 
-    var TodoList = React.createClass({
+    var ToDoList = React.createClass ({
 
-        _makeItem: function(model,i) {
-            console.log(model, i)
-            return <Item key={i} updater={this.props.updater} itemModel={model} />
+        _getItemJSX: function(model,i) {
+            return <Item key={i} model={model} updater={this.props.updater} />
         },
 
-        render: function() {
+        render:function(){
             return (
                 <div className="todoList">
-                    {this.props.todoColl.map(this._makeItem)}
+                    <button onClick={this.props.clearer}>clear finished</button>
+                    {this.props.todoColl.map(this._getItemJSX)}
                 </div>
-                )
+            )
         }
     })
 
     var Item = React.createClass({
+
         _toggleDone: function() {
-            if (this.props.itemModel.get('done')) {
-                this.props.itemModel.set({done: false})
-            }
-            else {
-                this.props.itemModel.set({done: true})
-            }
+            if (this.props.model.get('done')) this.props.model.set({done: false})
+            else this.props.model.set({done:true})
             this.props.updater()
         },
 
         render: function() {
-            var buttonFiller = this.props.itemModel.get('done') ? "\u2713" : ' '                 
+            
+
+            var buttonFiller = ' '
+            if (this.props.model.get('done')) buttonFiller = "\u2713"
 
             return (
                 <div className="todoItem">
-                    <p>{this.props.itemModel.get('task')}</p>
-                    <button onClick={this._toggleDone}>{buttonFiller}</button>
+                    <p>{this.props.model.get('text')}</p>
+                    <button onClick={this._toggleDone} >{buttonFiller}</button>
                 </div>
                 )
         }
     })
 
+
     var TodoRouter = Backbone.Router.extend({
         routes: {
-            "undone": "showUndone",
-            "done": "showDone",
-            "*default": "home"
+            "todo": "showTodoPage",
+            "*default": "showLogin"
         },
 
-        showDone: function(){
-            console.log('showing done')
-            DOM.render(<TodoView showing="done" todoColl={new TodoCollection()}/>,document.querySelector('.container'))
+        handleUserSubmit: function(username) {
+            localStorage.todoUsername = username
+            var userModel = new UserModel({username: username})
+            userModel.fetch().then(function(resp){
+                if (resp !== null) {
+                    location.hash = "todo"
+                }
+            })
         },
 
-        home: function() {
-            DOM.render(<TodoView showing="all" todoColl={new TodoCollection()}/>,document.querySelector('.container'))
+        showLogin: function() {
+            location.hash = "login"
+            var boundSubmitter = this.handleUserSubmit.bind(this)
+            DOM.render(<LoginView handleUserSubmit={boundSubmitter}/>, document.querySelector('.container'))
         },
 
-        showUndone: function() {
-            DOM.render(<TodoView showing="undone" todoColl={new TodoCollection()}/>,document.querySelector('.container'))            
+        showTodoPage: function() {
+            if (typeof localStorage.todoUsername !== 'string') {location.hash = "login"}
+            var tc = new TodoCollection(localStorage.todoUsername)
+            DOM.render(<ToDoView todoColl={tc} />,document.querySelector('.container'))
         },
 
         initialize: function() {
@@ -196,8 +254,7 @@ function app() {
         }
     })
 
-    var pr = new TodoRouter()
-
+    var rtr = new TodoRouter()
 }
 
 app()
